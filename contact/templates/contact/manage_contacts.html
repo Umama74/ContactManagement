@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Contacts</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f4f7fb;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --accent: #2563eb;
+            --border: #e5e7eb;
+            --shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+        }
+
+        body.dark {
+            --bg: #0f172a;
+            --card: #111827;
+            --text: #f9fafb;
+            --muted: #9ca3af;
+            --accent: #60a5fa;
+            --border: #374151;
+            --shadow: 0 16px 40px rgba(2, 6, 23, 0.45);
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+        .page { max-width: 900px; margin: 0 auto; padding: 24px; }
+        .topbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .topbar h1 { margin: 0; font-size: 2rem; }
+        .topbar button {
+            border: none;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: var(--accent);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+            position: relative;
+        }
+        .card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .floating-add {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 46px;
+            height: 46px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            display: grid;
+            place-items: center;
+            text-decoration: none;
+            font-size: 1.7rem;
+            font-weight: 700;
+            box-shadow: var(--shadow);
+        }
+        form { display: grid; gap: 12px; }
+        label { display: grid; gap: 6px; font-weight: 600; }
+        input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text);
+        }
+        .action-btn {
+            border: none;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: var(--accent);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            width: fit-content;
+        }
+        .secondary-link {
+            color: var(--accent);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .contact-list { display: grid; gap: 10px; margin-top: 12px; }
+        .contact-item {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+        }
+        .contact-item strong { display: block; }
+        .contact-item span { color: var(--muted); font-size: 0.95rem; }
+        .small-actions { display: flex; gap: 8px; align-items: center; position: relative; }
+        .small-actions a, .small-actions button {
+            padding: 7px 10px;
+            border-radius: 999px;
+            border: none;
+            text-decoration: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .small-actions a { background: var(--accent); color: white; }
+        .small-actions .delete-btn { background: #dc2626; color: white; }
+        .delete-popup {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 8px);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px;
+            display: none;
+            box-shadow: var(--shadow);
+            z-index: 5;
+            min-width: 170px;
+        }
+        .delete-popup.show { display: block; }
+        .delete-popup button {
+            margin-top: 8px;
+            width: 100%;
+            border: none;
+            border-radius: 8px;
+            padding: 7px;
+            cursor: pointer;
+        }
+        .delete-popup .confirm { background: #dc2626; color: white; }
+        .delete-popup .cancel { background: var(--border); color: var(--text); }
+        .error {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin-bottom: 12px;
+        }
+        .muted { color: var(--muted); }
+    </style>
+    <script>
+        function applyTheme(theme) {
+            const isDark = theme === 'dark';
+            document.body.classList.toggle('dark', isDark);
+            const button = document.getElementById('theme-toggle');
+            if (button) {
+                button.textContent = isDark ? '☀️ Light' : '🌙 Dark';
+            }
+        }
+
+        function toggleTheme() {
+            const nextTheme = document.body.classList.contains('dark') ? 'light' : 'dark';
+            localStorage.setItem('contact-theme', nextTheme);
+            applyTheme(nextTheme);
+        }
+
+        function toggleDeletePopup(trigger) {
+            const container = trigger.closest('.small-actions');
+            const popup = container ? container.querySelector('.delete-popup') : null;
+            if (!popup) {
+                return;
+            }
+            popup.classList.toggle('show');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const storedTheme = localStorage.getItem('contact-theme');
+            applyTheme(storedTheme || 'light');
+        });
+    </script>
+</head>
+<body>
+    <div class="page">
+        <div class="topbar">
+            <h1>Contact Manager</h1>
+            <button id="theme-toggle" type="button" onclick="toggleTheme()">🌙 Dark</button>
+        </div>
+
+        <div class="card">
+            {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+            {% if action == 'add' or action == 'update' %}
+                <div class="card-head">
+                    <h2>{% if action == 'update' %}Update Contact{% else %}Add Contact{% endif %}</h2>
+                    <a class="secondary-link" href="{% url 'manage_contacts' %}">Back to Contacts</a>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="{{ action }}">
+                    {% if selected_contact %}
+                        <input type="hidden" name="contact_id" value="{{ selected_index }}">
+                    {% endif %}
+                    <label>
+                        Name
+                        <input type="text" name="name" value="{% if selected_contact %}{{ selected_contact.name }}{% endif %}" placeholder="Enter full name" required>
+                    </label>
+                    <label>
+                        Contact Number
+                        <input type="text" name="phone" value="{% if selected_contact %}{{ selected_contact.phone }}{% endif %}" placeholder="Enter phone number" required>
+                    </label>
+                    <button class="action-btn" type="submit">{% if action == 'update' %}Update Contact{% else %}Add Contact{% endif %}</button>
+                </form>
+            {% else %}
+                <div class="card-head">
+                    <h2>View Contacts</h2>
+                    <a class="floating-add" href="{% url 'manage_contacts' %}?action=add" title="Add Contact">+</a>
+                </div>
+                <div class="contact-list">
+                    {% if contacts %}
+                        {% for contact in contacts %}
+                            <div class="contact-item">
+                                <div>
+                                    <strong>{{ contact.name }}</strong>
+                                    <span>{{ contact.phone }}</span>
+                                </div>
+                                <div class="small-actions">
+                                    <a href="{% url 'manage_contacts' %}?action=update&index={{ forloop.counter0 }}" title="Edit contact">✎</a>
+                                    <button class="delete-btn" type="button" title="Delete contact" onclick="toggleDeletePopup(this)">🗑</button>
+                                    <div class="delete-popup">
+                                        <div class="muted">Delete this contact?</div>
+                                        <form method="post" style="display:grid; gap:8px; margin-top:8px;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="contact_id" value="{{ forloop.counter0 }}">
+                                            <button class="confirm" type="submit">Yes, delete</button>
+                                            <button class="cancel" type="button" onclick="toggleDeletePopup(this)">Cancel</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="muted">No contacts saved yet.</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>
